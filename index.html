@@ -175,9 +175,41 @@
 
       let hits = 0;
       const maxHits = 5;
+      let audioCtx = null;
 
       function vibe(ms) {
         if (navigator.vibrate) navigator.vibrate(ms);
+      }
+
+      function beep(freq = 440, duration = 0.12, type = 'sine', gainValue = 0.035) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        if (!audioCtx) audioCtx = new Ctx();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.value = gainValue;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      }
+
+      function playPressSound(isFinal) {
+        if (isFinal) {
+          beep(165, 0.18, 'square', 0.06);
+          setTimeout(() => beep(196, 0.18, 'square', 0.055), 160);
+          setTimeout(() => beep(220, 0.22, 'triangle', 0.05), 340);
+          setTimeout(() => beep(330, 0.14, 'sine', 0.04), 560);
+          setTimeout(() => beep(440, 0.22, 'triangle', 0.045), 720);
+        } else {
+          const tones = [740, 660, 590, 520, 460];
+          const idx = Math.min(hits - 1, tones.length - 1);
+          beep(tones[idx], 0.08, hits >= 4 ? 'square' : 'triangle', hits >= 4 ? 0.04 : 0.03);
+          if (hits >= 3) setTimeout(() => beep(tones[idx] / 2, 0.05, 'sine', 0.018), 85);
+        }
       }
 
       function resetAnim(el, cls) {
@@ -202,13 +234,15 @@
           hits += 1;
           updateUI();
           resetAnim(button, hits >= 4 ? 'shake-hard' : 'shake');
+          playPressSound(false);
           vibe(hits >= 4 ? [60, 40, 60, 40, 100] : [40, 30, 40]);
           if (hits === maxHits) {
             title.textContent = 'BOSS DEFEATED';
             sub.textContent = 'Victory unlocked.';
             button.textContent = 'WIN';
             button.classList.add('victory');
-            vibe([80, 40, 80, 40, 120]);
+            playPressSound(true);
+            vibe([80, 50, 80, 50, 140]);
             setTimeout(() => {
               message.textContent = 'congrats';
               message.classList.add('show', 'pop');
